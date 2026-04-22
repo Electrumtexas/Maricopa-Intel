@@ -35,26 +35,26 @@ jobs:
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
         run: |
-          cd maricopa-pima-intel-main
+          cd maricopa-intel
           python scrapers/maricopa_recorder.py --days $LOOKBACK_DAYS
 
       - name: Scrape Pima recorder
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
         run: |
-          cd maricopa-pima-intel-main
+          cd maricopa-intel
           python scrapers/pima_recorder.py --days $LOOKBACK_DAYS
 
       # ── BUILD RANKED LEADS (merge + score) ──────────────────────────
       - name: Build unified leads
         run: |
-          cd maricopa-pima-intel-main
+          cd maricopa-intel
           python pipeline/build_leads.py
 
       # ── EXPORT CSVs ──────────────────────────────────────────────────
       - name: Export CSVs
         run: |
-          cd maricopa-pima-intel-main
+          cd maricopa-intel
           python pipeline/export_csv.py
 
       # ── COMMIT ALL OUTPUTS ───────────────────────────────────────────
@@ -63,8 +63,8 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add \
-            maricopa-pima-intel-main/data/leads.json \
-            maricopa-pima-intel-main/data/ || true
+            maricopa-intel/data/leads.json \
+            maricopa-intel/data/ || true
           git diff --staged --quiet || git commit -m "Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push
 
@@ -89,7 +89,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: maricopa-pima-intel-main/
+          path: maricopa-intel/
 
       - name: Deploy to GitHub Pages
         id: deployment
