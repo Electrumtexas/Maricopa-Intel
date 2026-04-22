@@ -30,7 +30,7 @@ jobs:
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      # ── MARICOPA RECORDER (public JSON API — no browser needed) ─────
+      # ── MARICOPA RECORDER (public JSON API) ──────────────────────────
       - name: Scrape Maricopa recorder
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
@@ -38,34 +38,34 @@ jobs:
           cd maricopa-intel
           python scrapers/maricopa_recorder_api.py --days $LOOKBACK_DAYS
 
-      # ── PIMA RECORDER (Playwright-based) ────────────────────────────
+      # ── PIMA RECORDER (Playwright — non-fatal if it fails) ───────────
       - name: Scrape Pima recorder
+        continue-on-error: true
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
         run: |
           cd maricopa-intel
           python scrapers/pima_recorder.py --days $LOOKBACK_DAYS
 
-      # ── BUILD RANKED LEADS (merge + score) ──────────────────────────
+      # ── BUILD RANKED LEADS ───────────────────────────────────────────
       - name: Build unified leads
         run: |
           cd maricopa-intel
-          python pipeline/build_leads.py
+          PYTHONPATH=. python pipeline/build_leads.py
 
       # ── EXPORT CSVs ──────────────────────────────────────────────────
       - name: Export CSVs
+        continue-on-error: true
         run: |
           cd maricopa-intel
-          python pipeline/export_csv.py
+          PYTHONPATH=. python pipeline/export_csv.py
 
       # ── COMMIT ALL OUTPUTS ───────────────────────────────────────────
       - name: Commit updated data files
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add \
-            maricopa-intel/data/leads.json \
-            maricopa-intel/data/ || true
+          git add maricopa-intel/data/ || true
           git diff --staged --quiet || git commit -m "Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push
 
