@@ -1,0 +1,96 @@
+name: Maricopa Intel Scraper
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 2 AM CT daily
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: 'Lookback days for recorder scraper (default 30, max 90)'
+        required: false
+        default: '30'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r maricopa-pima-intel-main/requirements.txt
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
+      # ── RECORDER SIGNALS (daily scrape) ─────────────────────────────
+      - name: Scrape Maricopa recorder
+        env:
+          LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
+        run: |
+          cd maricopa-pima-intel-main
+          python scrapers/maricopa_recorder.py --days $LOOKBACK_DAYS
+
+      - name: Scrape Pima recorder
+        env:
+          LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
+        run: |
+          cd maricopa-pima-intel-main
+          python scrapers/pima_recorder.py --days $LOOKBACK_DAYS
+
+      # ── BUILD RANKED LEADS (merge + score) ──────────────────────────
+      - name: Build unified leads
+        run: |
+          cd maricopa-pima-intel-main
+          python pipeline/build_leads.py
+
+      # ── EXPORT CSVs ──────────────────────────────────────────────────
+      - name: Export CSVs
+        run: |
+          cd maricopa-pima-intel-main
+          python pipeline/export_csv.py
+
+      # ── COMMIT ALL OUTPUTS ───────────────────────────────────────────
+      - name: Commit updated data files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add \
+            maricopa-pima-intel-main/data/leads.json \
+            maricopa-pima-intel-main/data/ || true
+          git diff --staged --quiet || git commit -m "Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
+
+  deploy:
+    needs: scrape
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: maricopa-pima-intel-main/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
