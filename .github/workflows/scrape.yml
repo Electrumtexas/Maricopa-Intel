@@ -26,7 +26,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r maricopa-pima-intel-main/requirements.txt
+          pip install requests playwright pandas beautifulsoup4 lxml
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
