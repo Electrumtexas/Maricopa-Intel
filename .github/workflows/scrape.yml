@@ -26,18 +26,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests playwright pandas beautifulsoup4 lxml
+          pip install requests pandas beautifulsoup4 lxml playwright
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      # ── RECORDER SIGNALS (daily scrape) ─────────────────────────────
+      # ── MARICOPA RECORDER (public JSON API — no browser needed) ─────
       - name: Scrape Maricopa recorder
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
         run: |
           cd maricopa-intel
-          python scrapers/maricopa_recorder.py --days $LOOKBACK_DAYS
+          python scrapers/maricopa_recorder_api.py --days $LOOKBACK_DAYS
 
+      # ── PIMA RECORDER (Playwright-based) ────────────────────────────
       - name: Scrape Pima recorder
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '30' }}
